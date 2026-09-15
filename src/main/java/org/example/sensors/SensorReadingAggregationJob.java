@@ -35,7 +35,7 @@ public class SensorReadingAggregationJob {
                 .build();
 
         DataStream<String> rawJson = env.fromSource(
-                source, WatermarkStrategy.noWatermarks(), "kafka-ensor-readings");
+                source, WatermarkStrategy.noWatermarks(), "kafka-sensor-readings");
 
         DataStream<SensorReading> events = rawJson.map(new SensorReadingAggregationJob.JsonToEvent());
 
@@ -52,7 +52,7 @@ public class SensorReadingAggregationJob {
                 "INSERT INTO sensor_window_stats (sensor_id, window_start, window_end, min_temp, max_temp, avg_temp, reading_count) " +
                         "VALUES (?, ?, ?, ?, ?, ?, ?) " +
                         "ON CONFLICT (sensor_id, window_start) " +
-                        "DO UPDATE SET" +
+                        "DO UPDATE SET " +
                         "window_end = EXCLUDED.window_end," +
                         "min_temp = EXCLUDED.min_temp," +
                         "max_temp = EXCLUDED.max_temp," +
@@ -76,6 +76,8 @@ public class SensorReadingAggregationJob {
                         .withUsername("flink")
                         .withPassword("flink")
                         .build()));
+
+        env.execute("sensors-window-aggregation");
     }
 
     private static class JsonToEvent implements MapFunction<String, SensorReading> {
@@ -94,7 +96,7 @@ public class SensorReadingAggregationJob {
             implements WindowFunction<SensorReading, SensorWindowStats, String, TimeWindow> {
 
         @Override
-        public void apply(String adId, TimeWindow window, Iterable<SensorReading> input,
+        public void apply(String sensorId, TimeWindow window, Iterable<SensorReading> input,
                           Collector<SensorWindowStats> out) {
             double minTemp = Double.MAX_VALUE;
             double maxTemp = -Double.MAX_VALUE;
@@ -108,7 +110,7 @@ public class SensorReadingAggregationJob {
             }
             double avgTemp = sumTemp / readingCount;
 
-            out.collect(new SensorWindowStats(adId, window.getStart(), window.getEnd(), minTemp, maxTemp, avgTemp, readingCount));
+            out.collect(new SensorWindowStats(sensorId, window.getStart(), window.getEnd(), minTemp, maxTemp, avgTemp, readingCount));
         }
     }
 }
