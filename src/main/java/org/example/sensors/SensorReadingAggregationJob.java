@@ -96,14 +96,17 @@ public class SensorReadingAggregationJob {
         @Override
         public void apply(String adId, TimeWindow window, Iterable<SensorReading> input,
                           Collector<SensorWindowStats> out) {
-            double minTemp = 0;
-            double maxTemp = 0;
-            double avgTemp = 0;
+            double minTemp = Double.MAX_VALUE;
+            double maxTemp = -Double.MAX_VALUE;
+            double sumTemp = 0;
             long readingCount = 0;
-            for (SensorReading ignored : input) {
-                // TODO: add min/max/avg
+            for (SensorReading reading : input) {
+                minTemp = Math.min(minTemp, reading.temperature);
+                maxTemp = Math.max(maxTemp, reading.temperature);
+                sumTemp += reading.temperature;
                 readingCount++;
             }
+            double avgTemp = sumTemp / readingCount;
 
             out.collect(new SensorWindowStats(adId, window.getStart(), window.getEnd(), minTemp, maxTemp, avgTemp, readingCount));
         }
